@@ -1,3 +1,4 @@
+import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -51,6 +52,8 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = path.resolve(__dirname, '..')
 const distDir = path.join(projectRoot, 'dist')
+const distIndexPath = path.join(distDir, 'index.html')
+const devAppUrl = process.env.DEV_APP_URL || 'http://localhost:5173'
 const port = Number(process.env.PORT || 8787)
 
 const app = express()
@@ -859,7 +862,17 @@ app.get(/^(?!\/api).*/, (request, response, next) => {
     return
   }
 
-  response.sendFile(path.join(distDir, 'index.html'), (error) => {
+  if (!fs.existsSync(distIndexPath)) {
+    if (process.env.NODE_ENV !== 'production') {
+      response.redirect(302, `${devAppUrl}${request.originalUrl}`)
+      return
+    }
+
+    sendError(response, 'Frontend build nao encontrado. Execute "npm run build".', 503)
+    return
+  }
+
+  response.sendFile(distIndexPath, (error) => {
     if (error) {
       next(error)
     }
