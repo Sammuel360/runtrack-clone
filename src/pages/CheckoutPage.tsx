@@ -107,6 +107,8 @@ function ModernPaymentMethodScreen({
           <span className="payment-shell__gateway">
             {integrationStatus.mercadoPagoEnabled
               ? 'Gateway real conectado'
+              : integrationStatus.mercadoPagoConfigured
+                ? 'Gateway com configuracao pendente'
               : 'Ambiente de homologacao'}
           </span>
         </div>
@@ -159,12 +161,25 @@ function ModernPaymentMethodScreen({
           </div>
           <div className="payment-shell__trust">
             <ShieldCheck size={16} />
-            <span>{integrationStatus.mercadoPagoEnabled ? 'Mercado Pago' : 'Fluxo protegido'}</span>
+            <span>
+              {integrationStatus.mercadoPagoEnabled
+                ? 'Mercado Pago'
+                : integrationStatus.mercadoPagoConfigured
+                  ? 'Gateway pendente'
+                  : 'Fluxo protegido'}
+            </span>
           </div>
         </div>
 
         {feedbackMessage ? <div className="success-note">{feedbackMessage}</div> : null}
         {errorMessage ? <div className="success-note success-note--error">{errorMessage}</div> : null}
+        {integrationStatus.mercadoPagoConfigured &&
+        !integrationStatus.mercadoPagoEnabled &&
+        integrationStatus.mercadoPagoWarnings.length > 0 ? (
+          <div className="success-note success-note--error">
+            Mercado Pago configurado com pendencias: {integrationStatus.mercadoPagoWarnings[0]}
+          </div>
+        ) : null}
 
         <section className="payment-standard-section">
           <label className="field field--full">
@@ -654,6 +669,8 @@ function ModernPaymentMethodScreen({
           <span>
             {integrationStatus.mercadoPagoEnabled
               ? 'Conectado ao Mercado Pago'
+              : integrationStatus.mercadoPagoConfigured
+                ? 'Mercado Pago configurado com pendencias'
               : 'Checkout validado em ambiente interno'}
           </span>
           <div className="payment-footer__links">
@@ -705,9 +722,12 @@ const paymentOptions: PaymentOption[] = [
 ]
 
 const fallbackIntegrationStatus: IntegrationStatus = {
+  mercadoPagoConfigured: false,
   mercadoPagoEnabled: false,
+  mercadoPagoWarnings: [],
   resendEnabled: false,
   appUrl: '',
+  webhookUrl: '',
 }
 
 const emptyCardForm: CardFormState = {
@@ -1398,13 +1418,20 @@ export function CheckoutPage() {
                     Gateway de pagamento:{' '}
                     {integrationStatus.mercadoPagoEnabled
                       ? 'Mercado Pago ativo'
-                      : 'nao configurado'}
+                      : integrationStatus.mercadoPagoConfigured
+                        ? 'configurado com pendencias'
+                        : 'nao configurado'}
                   </li>
                   <li>
                     Email transacional:{' '}
                     {integrationStatus.resendEnabled ? 'Resend ativo' : 'fila local operacional'}
                   </li>
                   <li>App URL atual: {integrationStatus.appUrl || 'nao definido'}</li>
+                  {integrationStatus.mercadoPagoConfigured &&
+                  !integrationStatus.mercadoPagoEnabled &&
+                  integrationStatus.mercadoPagoWarnings.length > 0 ? (
+                    <li>Pendencia do gateway: {integrationStatus.mercadoPagoWarnings[0]}</li>
+                  ) : null}
                 </ul>
               </article>
 
@@ -1538,6 +1565,8 @@ export function PaymentMethodScreen({
           <p>
             {integrationStatus.mercadoPagoEnabled
               ? 'Para manter seguranca e conformidade, os dados finais do cartao serao preenchidos na pagina segura do gateway.'
+              : integrationStatus.mercadoPagoConfigured
+                ? 'O gateway esta configurado, mas ainda com pendencias. Corrija a integracao antes de cobrar com cartao real.'
               : 'Nesta versao, o atleta preenche os dados do cartao e conclui a simulacao do pagamento nesta tela.'}
           </p>
         </div>

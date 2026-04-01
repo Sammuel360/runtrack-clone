@@ -3,6 +3,31 @@ const mercadoPagoAccessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN || ''
 const resendApiKey = process.env.RESEND_API_KEY || ''
 const resendFromEmail = process.env.RESEND_FROM_EMAIL || ''
 
+function safeParseUrl(value) {
+  try {
+    return new URL(value)
+  } catch {
+    return null
+  }
+}
+
+function isLoopbackHost(hostname) {
+  return (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '::1' ||
+    hostname.endsWith('.localhost')
+  )
+}
+
+function isPrivateIpv4(hostname) {
+  return (
+    /^10\./.test(hostname) ||
+    /^192\.168\./.test(hostname) ||
+    /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)
+  )
+}
+
 function splitFullName(fullName) {
   const parts = String(fullName ?? '')
     .trim()
@@ -82,10 +107,33 @@ function inferMercadoPagoPaymentMethod(paymentTypeId) {
 }
 
 export function getIntegrationStatus() {
+  const mercadoPagoWarnings = !mercadoPagoAccessToken
+    ? ['Defina MERCADO_PAGO_ACCESS_TOKEN para ativar pagamentos reais.']
+    : (() => {
+        const parsedAppUrl = safeParseUrl(appUrl)
+
+        if (!parsedAppUrl) {
+          return ['APP_URL precisa ser uma URL absoluta valida para o retorno do checkout e webhook.']
+        }
+
+        if (isLoopbackHost(parsedAppUrl.hostname) || isPrivateIpv4(parsedAppUrl.hostname)) {
+          return ['APP_URL precisa ser publica para o Mercado Pago conseguir redirecionar e enviar webhooks.']
+        }
+
+        if (parsedAppUrl.protocol !== 'https:') {
+          return ['APP_URL precisa usar HTTPS para pagamentos reais do Mercado Pago.']
+        }
+
+        return []
+      })()
+
   return {
-    mercadoPagoEnabled: Boolean(mercadoPagoAccessToken),
+    mercadoPagoConfigured: Boolean(mercadoPagoAccessToken),
+    mercadoPagoEnabled: Boolean(mercadoPagoAccessToken) && mercadoPagoWarnings.length === 0,
+    mercadoPagoWarnings,
     resendEnabled: Boolean(resendApiKey && resendFromEmail),
     appUrl,
+    webhookUrl: `${appUrl}/api/payments/webhooks/mercadopago`,
   }
 }
 

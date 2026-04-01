@@ -1,6 +1,5 @@
 const ATHLETE_OWNER_STORAGE_KEY = 'runtrack-athlete-owner-id'
 export const ATHLETE_SESSION_STORAGE_KEY = 'runtrack-athlete-session'
-export const ORGANIZER_SESSION_STORAGE_KEY = 'runtrack-organizer-session'
 
 export class ApiError extends Error {
   status: number
@@ -43,20 +42,6 @@ export function getAthleteOwnerId() {
   return nextId
 }
 
-export function getStoredOrganizerAuthToken() {
-  try {
-    const raw = window.localStorage.getItem(ORGANIZER_SESSION_STORAGE_KEY)
-    if (!raw) {
-      return null
-    }
-
-    const parsed = JSON.parse(raw) as { token?: string }
-    return typeof parsed.token === 'string' && parsed.token ? parsed.token : null
-  } catch {
-    return null
-  }
-}
-
 export function getStoredAthleteAuthToken() {
   try {
     const raw = window.localStorage.getItem(ATHLETE_SESSION_STORAGE_KEY)
@@ -78,6 +63,7 @@ export async function requestJson<T>(
     includeAthleteOwnerId?: boolean
     includeAthleteAuth?: boolean
     includeOrganizerAuth?: boolean
+    includeCredentials?: boolean
   },
 ) {
   const headers = new Headers(init?.headers ?? {})
@@ -98,16 +84,11 @@ export async function requestJson<T>(
     }
   }
 
-  if (options?.includeOrganizerAuth) {
-    const token = getStoredOrganizerAuthToken()
-
-    if (token) {
-      headers.set('Authorization', `Bearer ${token}`)
-    }
-  }
-
   const response = await fetch(`${resolveApiBase()}${path}`, {
     ...init,
+    credentials:
+      init?.credentials ??
+      (options?.includeOrganizerAuth || options?.includeCredentials ? 'include' : undefined),
     headers,
   })
 

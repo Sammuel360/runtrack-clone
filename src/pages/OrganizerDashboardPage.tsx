@@ -105,9 +105,12 @@ const emptyReports: DashboardReports = {
 }
 
 const emptyIntegrations: IntegrationStatus = {
+  mercadoPagoConfigured: false,
   mercadoPagoEnabled: false,
+  mercadoPagoWarnings: [],
   resendEnabled: false,
   appUrl: '',
+  webhookUrl: '',
 }
 
 const emptyRaceForm: RaceFormState = {
@@ -468,7 +471,11 @@ export function OrganizerDashboardPage() {
   const platformSignals: Array<{ label: string; value: string; tone: OperatorTone }> = [
     {
       label: 'Pagamentos',
-      value: integrations.mercadoPagoEnabled ? 'Gateway conectado' : 'Modo assistido',
+      value: integrations.mercadoPagoEnabled
+        ? 'Gateway conectado'
+        : integrations.mercadoPagoConfigured
+          ? 'Configuracao pendente'
+          : 'Modo assistido',
       tone: integrations.mercadoPagoEnabled ? 'success' : 'warning',
     },
     {
@@ -589,9 +596,17 @@ export function OrganizerDashboardPage() {
             <p className="dashboard-list-item__message">
               {integrations.mercadoPagoEnabled
                 ? 'Mercado Pago configurado e pronto para checkout externo.'
-                : 'Mercado Pago ainda nao configurado. O fluxo usa aprovacao operacional.'}
+                : integrations.mercadoPagoConfigured
+                  ? 'Mercado Pago com pendencias de configuracao. O checkout real fica bloqueado ate corrigir isso.'
+                  : 'Mercado Pago ainda nao configurado. O fluxo usa aprovacao operacional.'}
             </p>
           </div>
+          {integrations.mercadoPagoConfigured && !integrations.mercadoPagoEnabled ? (
+            <div className="dashboard-callout">
+              <strong>Pendencia principal</strong>
+              <span>{integrations.mercadoPagoWarnings[0] || 'Revise a configuracao do gateway.'}</span>
+            </div>
+          ) : null}
           <div className="dashboard-list-item">
             <div className="dashboard-list-item__header">
               <h3>Email transacional</h3>
@@ -605,6 +620,10 @@ export function OrganizerDashboardPage() {
           <div className="dashboard-callout">
             <strong>App URL</strong>
             <span>{integrations.appUrl || 'Nao definido'}</span>
+          </div>
+          <div className="dashboard-callout">
+            <strong>Webhook</strong>
+            <span>{integrations.webhookUrl || 'Nao definido'}</span>
           </div>
         </div>
       </article>
@@ -1349,7 +1368,11 @@ export function OrganizerDashboardPage() {
 
               <div className="operator-stack-pills">
                 <span className="operator-stack-pill">
-                  {integrations.mercadoPagoEnabled ? 'Pagamento online' : 'Pagamento assistido'}
+                  {integrations.mercadoPagoEnabled
+                    ? 'Pagamento online'
+                    : integrations.mercadoPagoConfigured
+                      ? 'Gateway pendente'
+                      : 'Pagamento assistido'}
                 </span>
                 <span className="operator-stack-pill">
                   {integrations.resendEnabled ? 'Email transacional ativo' : 'Email interno'}
@@ -1684,9 +1707,17 @@ export function OrganizerDashboardPage() {
                         <p className="dashboard-list-item__message">
                           {integrations.mercadoPagoEnabled
                             ? 'Mercado Pago configurado e pronto para checkout externo.'
-                            : 'Mercado Pago ainda nao configurado. O fluxo usa aprovacao operacional.'}
+                            : integrations.mercadoPagoConfigured
+                              ? 'Mercado Pago com pendencias de configuracao. O checkout real fica bloqueado ate corrigir isso.'
+                              : 'Mercado Pago ainda nao configurado. O fluxo usa aprovacao operacional.'}
                         </p>
                       </div>
+                      {integrations.mercadoPagoConfigured && !integrations.mercadoPagoEnabled ? (
+                        <div className="dashboard-callout">
+                          <strong>Pendencia principal</strong>
+                          <span>{integrations.mercadoPagoWarnings[0] || 'Revise a configuracao do gateway.'}</span>
+                        </div>
+                      ) : null}
                       <div className="dashboard-list-item">
                         <div className="dashboard-list-item__header">
                           <h3>Email transacional</h3>

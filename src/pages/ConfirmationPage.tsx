@@ -218,8 +218,8 @@ export function ConfirmationPage() {
               </div>
 
               <div className="confirmation-actions">
-                <Link className="button button--secondary" to="/organizer">
-                  Abrir painel do organizador
+                <Link className="button button--secondary" to="/races">
+                  Explorar mais corridas
                 </Link>
                 {registration.paymentMethod === 'boleto' || registration.paymentDigitableLine ? (
                   <Link className="button button--secondary" to={`/payment-slip/${registration.id}`}>

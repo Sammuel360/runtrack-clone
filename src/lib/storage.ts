@@ -171,9 +171,12 @@ export type DashboardSnapshot = {
 }
 
 export type IntegrationStatus = {
+  mercadoPagoConfigured: boolean
   mercadoPagoEnabled: boolean
+  mercadoPagoWarnings: string[]
   resendEnabled: boolean
   appUrl: string
+  webhookUrl: string
 }
 
 export type PaymentRequestResult = {

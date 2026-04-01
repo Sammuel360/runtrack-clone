@@ -196,8 +196,8 @@ export function ContactPage() {
                 O passo natural agora e trocar os disparos simulados por CRM, email
                 transacional e onboarding real de novos eventos.
               </p>
-              <Link className="button button--secondary" to="/organizer">
-                Ver painel operacional
+              <Link className="button button--secondary" to="/contact?audience=organizer">
+                Falar sobre onboarding
               </Link>
             </article>
           </aside>

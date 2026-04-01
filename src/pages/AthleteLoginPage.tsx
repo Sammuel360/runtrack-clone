@@ -154,11 +154,8 @@ export function AthleteLoginPage() {
               Inscricoes criadas antes do login neste navegador sao vinculadas automaticamente
               quando voce entra na conta.
             </p>
-            <Link
-              className="button button--ghost"
-              to={`/organizer/login?redirect=${encodeURIComponent('/organizer')}`}
-            >
-              Sou organizador
+            <Link className="button button--ghost" to="/contact?audience=organizer">
+              Quero publicar um evento
             </Link>
           </aside>
         </div>

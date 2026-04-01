@@ -209,8 +209,8 @@ export function HomePage() {
                 <li key={benefit}>{benefit}</li>
               ))}
             </ul>
-            <Link className="button button--primary" to="/organizer">
-              Abrir painel do organizador
+            <Link className="button button--primary" to="/contact?audience=organizer">
+              Quero publicar meu evento
             </Link>
           </article>
         </div>

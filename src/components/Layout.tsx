@@ -131,7 +131,6 @@ function Header() {
           <NavItem to="/">Inicio</NavItem>
           <NavItem to="/races">Corridas</NavItem>
           <NavItem to="/my-registrations">Minhas inscricoes</NavItem>
-          <NavItem to="/organizer">Painel</NavItem>
           <NavItem to="/contact">Contato</NavItem>
           <Link className="button button--secondary button--small" to="/athlete/login">
             {session ? 'Conta do atleta' : 'Entrar atleta'}
@@ -166,9 +165,6 @@ function Header() {
             </NavItem>
             <NavItem to="/my-registrations" mobile onSelect={closeMenu}>
               Minhas inscricoes
-            </NavItem>
-            <NavItem to="/organizer" mobile onSelect={closeMenu}>
-              Painel
             </NavItem>
             <NavItem to="/contact" mobile onSelect={closeMenu}>
               Contato
@@ -242,7 +238,6 @@ function Footer() {
             <Link to="/">Inicio</Link>
             <Link to="/races">Corridas</Link>
             <Link to="/my-registrations">Minhas inscricoes</Link>
-            <Link to="/organizer">Painel do Organizador</Link>
             <Link to="/contact">Contato</Link>
             <Link to="/privacy">Politica de Privacidade</Link>
             <Link to="/terms">Termos de Uso</Link>

@@ -54,6 +54,7 @@ const projectRoot = path.resolve(__dirname, '..')
 const distDir = path.join(projectRoot, 'dist')
 const distIndexPath = path.join(distDir, 'index.html')
 const devAppUrl = process.env.DEV_APP_URL || 'http://localhost:5173'
+const organizerSessionCookieName = 'runtrack-organizer-session'
 const port = Number(process.env.PORT || 8787)
 
 const app = express()
@@ -85,8 +86,73 @@ function getBearerToken(request) {
   return rawHeader.slice(7).trim() || null
 }
 
+function parseCookies(request) {
+  const rawCookieHeader = request.headers.cookie ?? ''
+
+  return rawCookieHeader
+    .split(';')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .reduce((cookies, part) => {
+      const separatorIndex = part.indexOf('=')
+
+      if (separatorIndex <= 0) {
+        return cookies
+      }
+
+      const name = part.slice(0, separatorIndex).trim()
+      const value = part.slice(separatorIndex + 1).trim()
+
+      cookies[name] = decodeURIComponent(value)
+      return cookies
+    }, {})
+}
+
+function getCookieToken(request, cookieName) {
+  const cookies = parseCookies(request)
+  return typeof cookies[cookieName] === 'string' && cookies[cookieName] ? cookies[cookieName] : null
+}
+
+function shouldUseSecureCookies(request) {
+  return (
+    request.secure ||
+    request.headers['x-forwarded-proto'] === 'https' ||
+    process.env.NODE_ENV === 'production'
+  )
+}
+
+function buildCookieAttributes(request, maxAgeSeconds = null) {
+  const attributes = [
+    `${organizerSessionCookieName}=`,
+    'Path=/api',
+    'HttpOnly',
+    'SameSite=Lax',
+  ]
+
+  if (shouldUseSecureCookies(request)) {
+    attributes.push('Secure')
+  }
+
+  if (typeof maxAgeSeconds === 'number') {
+    attributes.push(`Max-Age=${maxAgeSeconds}`)
+  }
+
+  return attributes
+}
+
+function setOrganizerSessionCookie(response, request, token) {
+  const attributes = buildCookieAttributes(request, 60 * 60 * 12)
+  attributes[0] = `${organizerSessionCookieName}=${encodeURIComponent(token)}`
+  response.setHeader('Set-Cookie', attributes.join('; '))
+}
+
+function clearOrganizerSessionCookie(response, request) {
+  const attributes = buildCookieAttributes(request, 0)
+  response.setHeader('Set-Cookie', attributes.join('; '))
+}
+
 function readOrganizerToken(request) {
-  return getBearerToken(request)
+  return getCookieToken(request, organizerSessionCookieName) ?? getBearerToken(request)
 }
 
 function readAthleteHeaders(request) {
@@ -208,6 +274,7 @@ app.post('/api/auth/login', async (request, response, next) => {
       return
     }
 
+    setOrganizerSessionCookie(response, request, session.token)
     sendData(response, session)
   } catch (error) {
     next(error)
@@ -226,6 +293,7 @@ app.get('/api/auth/session', async (request, response, next) => {
 app.post('/api/auth/logout', async (request, response, next) => {
   try {
     await deleteOrganizerSession(readOrganizerToken(request))
+    clearOrganizerSessionCookie(response, request)
     sendData(response, { success: true })
   } catch (error) {
     next(error)
@@ -435,6 +503,16 @@ app.post('/api/registrations/:registrationId/payment', async (request, response,
     const paymentPayer = normalizePaymentPayer(request.body)
 
     const integrations = getIntegrationStatus()
+
+    if (integrations.mercadoPagoConfigured && !integrations.mercadoPagoEnabled) {
+      sendError(
+        response,
+        integrations.mercadoPagoWarnings[0] ||
+          'Mercado Pago configurado com pendencias. Revise APP_URL e as credenciais.',
+        503,
+      )
+      return
+    }
 
     if (integrations.mercadoPagoEnabled) {
       if (

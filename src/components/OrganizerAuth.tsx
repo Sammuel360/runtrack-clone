@@ -7,10 +7,9 @@ import {
 } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 
-import { SiteLayout } from './Layout'
+import { OperatorLayout } from './Layout'
 import {
   fetchOrganizerSession,
-  getStoredOrganizerSession,
   loginOrganizer,
   logoutOrganizer,
   type OrganizerSession,
@@ -27,7 +26,7 @@ type OrganizerAuthContextValue = {
 const OrganizerAuthContext = createContext<OrganizerAuthContextValue | null>(null)
 
 export function OrganizerAuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<OrganizerSession | null>(() => getStoredOrganizerSession())
+  const [session, setSession] = useState<OrganizerSession | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   async function refreshSession() {
@@ -85,7 +84,7 @@ export function OrganizerProtectedRoute({ children }: { children: ReactNode }) {
 
   if (isLoading) {
     return (
-      <SiteLayout>
+      <OperatorLayout>
         <section className="section section--compact">
           <div className="container">
             <article className="panel confirmation-empty">
@@ -94,7 +93,7 @@ export function OrganizerProtectedRoute({ children }: { children: ReactNode }) {
             </article>
           </div>
         </section>
-      </SiteLayout>
+      </OperatorLayout>
     )
   }
 

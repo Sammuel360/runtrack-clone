@@ -4,16 +4,25 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useOrganizerAuth } from '../components/OrganizerAuth'
 import { OperatorLayout, usePageMeta } from '../components/Layout'
 
+function resolveOrganizerRedirect(rawRedirect: string | null) {
+  if (!rawRedirect || !rawRedirect.startsWith('/organizer') || rawRedirect.startsWith('//')) {
+    return '/organizer'
+  }
+
+  return rawRedirect
+}
+
 export function OrganizerLoginPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { login, session } = useOrganizerAuth()
-  const [email, setEmail] = useState('organizer@runtrack.local')
-  const [password, setPassword] = useState('runtrack123')
+  const isDevelopment = import.meta.env.DEV
+  const [email, setEmail] = useState(isDevelopment ? 'organizer@runtrack.local' : '')
+  const [password, setPassword] = useState(isDevelopment ? 'runtrack123' : '')
   const [errorMessage, setErrorMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const redirectTo = searchParams.get('redirect') || '/organizer'
+  const redirectTo = resolveOrganizerRedirect(searchParams.get('redirect'))
 
   usePageMeta(
     'RunTrack | Login do organizador',
@@ -90,16 +99,18 @@ export function OrganizerLoginPage() {
               </p>
             </article>
 
-            <article className="operator-login__card">
-              <h3>Credencial local do ambiente</h3>
-              <div className="dashboard-list-item__meta">
-                <span>organizer@runtrack.local</span>
-                <span>runtrack123</span>
-              </div>
-              <p className="panel-intro">
-                Depois podemos trocar por usuarios reais, reset de senha, perfis e niveis de permissao.
-              </p>
-            </article>
+            {isDevelopment ? (
+              <article className="operator-login__card">
+                <h3>Credencial local do ambiente</h3>
+                <div className="dashboard-list-item__meta">
+                  <span>organizer@runtrack.local</span>
+                  <span>runtrack123</span>
+                </div>
+                <p className="panel-intro">
+                  Depois podemos trocar por usuarios reais, reset de senha, perfis e niveis de permissao.
+                </p>
+              </article>
+            ) : null}
 
             <article className="operator-login__card operator-login__card--soft">
               <h3>O que voce libera</h3>
