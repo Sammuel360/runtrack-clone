@@ -41,7 +41,7 @@ export function OperatorLayout({ children }: { children: ReactNode }) {
   return (
     <div className="operator-shell">
       <header className="operator-header">
-        <div className="container operator-header__inner">
+        <div className="container container--wide operator-header__inner">
           <Link className="operator-brand" to="/organizer">
             <span className="brand-mark operator-brand__mark">
               <Zap size={18} strokeWidth={2.4} />

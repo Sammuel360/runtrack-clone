@@ -1,17 +1,23 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   BarChart3,
+  Bell,
   CheckCircle2,
   CreditCard,
   Gift,
+  Menu,
   PackageCheck,
+  PanelLeftClose,
+  PanelLeftOpen,
   Pencil,
   Plus,
   RefreshCw,
+  Search,
   Send,
   TicketPercent,
   Trash2,
   Users,
+  X,
 } from 'lucide-react'
 
 import { useOrganizerAuth } from '../components/OrganizerAuth'
@@ -139,7 +145,7 @@ const emptyCouponForm: CouponFormState = {
 }
 
 export function OrganizerDashboardPage() {
-  const { logout, session } = useOrganizerAuth()
+  const { session } = useOrganizerAuth()
   const [races, setRaces] = useState<Race[]>([])
   const [coupons, setCoupons] = useState<CouponRecord[]>([])
   const [registrations, setRegistrations] = useState<RegistrationRecord[]>([])
@@ -160,6 +166,9 @@ export function OrganizerDashboardPage() {
   const [feedbackMessage, setFeedbackMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [activeWorkspace, setActiveWorkspace] = useState<OrganizerWorkspace>('dashboard')
+  const [isDesktopViewport, setIsDesktopViewport] = useState(false)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
+  const [isSidebarDrawerOpen, setIsSidebarDrawerOpen] = useState(false)
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null)
 
   usePageMeta(
@@ -205,6 +214,58 @@ export function OrganizerDashboardPage() {
     void refreshDashboard()
   }, [])
 
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(min-width: 1025px)')
+    const handleMediaChange = (event: MediaQueryListEvent | MediaQueryList) => {
+      setIsDesktopViewport(event.matches)
+
+      if (event.matches) {
+        setIsSidebarDrawerOpen(false)
+      }
+    }
+
+    handleMediaChange(mediaQuery)
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', handleMediaChange)
+
+      return () => mediaQuery.removeEventListener('change', handleMediaChange)
+    }
+
+    mediaQuery.addListener(handleMediaChange)
+
+    return () => mediaQuery.removeListener(handleMediaChange)
+  }, [])
+
+  useEffect(() => {
+    if (!isSidebarDrawerOpen) {
+      return undefined
+    }
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [isSidebarDrawerOpen])
+
+  useEffect(() => {
+    if (!isSidebarDrawerOpen) {
+      return undefined
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsSidebarDrawerOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isSidebarDrawerOpen])
+
   function updateRaceFormField<K extends keyof RaceFormState>(field: K, value: RaceFormState[K]) {
     setRaceForm((current) => ({ ...current, [field]: value }))
   }
@@ -226,8 +287,25 @@ export function OrganizerDashboardPage() {
     setCouponForm(emptyCouponForm)
   }
 
+  function handleWorkspaceChange(workspace: OrganizerWorkspace) {
+    setActiveWorkspace(workspace)
+    setIsSidebarDrawerOpen(false)
+  }
+
+  function toggleSidebarCollapse() {
+    setIsSidebarCollapsed((current) => !current)
+  }
+
+  function openSidebarDrawer() {
+    setIsSidebarDrawerOpen(true)
+  }
+
+  function closeSidebarDrawer() {
+    setIsSidebarDrawerOpen(false)
+  }
+
   function startEditingRace(race: Race) {
-    setActiveWorkspace('events')
+    handleWorkspaceChange('events')
     setEditingRaceId(race.id)
     setRaceForm({
       name: race.name,
@@ -244,7 +322,7 @@ export function OrganizerDashboardPage() {
   }
 
   function startEditingCoupon(coupon: CouponRecord) {
-    setActiveWorkspace('campaigns')
+    handleWorkspaceChange('campaigns')
     setEditingCouponId(coupon.id)
     setCouponForm({
       code: coupon.code,
@@ -257,10 +335,6 @@ export function OrganizerDashboardPage() {
       validUntil: coupon.validUntil ? coupon.validUntil.slice(0, 10) : '',
       raceIds: coupon.raceIds,
     })
-  }
-
-  async function handleLogout() {
-    await logout()
   }
 
   async function handleSendQueuedEmails() {
@@ -425,10 +499,6 @@ export function OrganizerDashboardPage() {
   const draftRaces = Math.max(races.length - publishedRaces, 0)
   const readyKits = registrations.filter((registration) => registration.kitStatus === 'separated').length
   const featuredRaces = races.filter((race) => race.featured).length
-  const paidRate =
-    summary.totalRegistrations === 0
-      ? 0
-      : Math.round((summary.paidRegistrations / summary.totalRegistrations) * 100)
   const workspaceItems: Array<{
     key: OrganizerWorkspace
     label: string
@@ -467,45 +537,8 @@ export function OrganizerDashboardPage() {
   ]
   const activeWorkspaceItem =
     workspaceItems.find((item) => item.key === activeWorkspace) ?? workspaceItems[0]
+  const showSidebarFooter = !isDesktopViewport || !isSidebarCollapsed
   const lastSyncedLabel = lastSyncedAt ? formatDateTime(lastSyncedAt) : 'Sincronizando dados'
-  const platformSignals: Array<{ label: string; value: string; tone: OperatorTone }> = [
-    {
-      label: 'Pagamentos',
-      value: integrations.mercadoPagoEnabled
-        ? 'Gateway conectado'
-        : integrations.mercadoPagoConfigured
-          ? 'Configuracao pendente'
-          : 'Modo assistido',
-      tone: integrations.mercadoPagoEnabled ? 'success' : 'warning',
-    },
-    {
-      label: 'Emails',
-      value: integrations.resendEnabled ? 'Transacional online' : 'Fila interna',
-      tone: integrations.resendEnabled ? 'success' : 'warning',
-    },
-    {
-      label: 'Ultima sincronizacao',
-      value: lastSyncedLabel,
-      tone: 'neutral',
-    },
-  ]
-  const workspacePulse: Array<{ label: string; value: string; tone: OperatorTone }> = [
-    {
-      label: 'Receita em processamento',
-      value: formatCurrency(summary.revenue),
-      tone: 'neutral',
-    },
-    {
-      label: 'Fila operacional',
-      value: `${summary.pendingRegistrations} pendencia(s)`,
-      tone: summary.pendingRegistrations > 0 ? 'warning' : 'success',
-    },
-    {
-      label: 'Mensageria',
-      value: queuedEmails.length === 0 ? 'Em dia' : `${queuedEmails.length} email(s)`,
-      tone: queuedEmails.length === 0 ? 'success' : 'warning',
-    },
-  ]
   const workspaceHighlights: Record<
     OrganizerWorkspace,
     Array<{ label: string; value: string; tone: OperatorTone }>
@@ -531,6 +564,66 @@ export function OrganizerDashboardPage() {
       { label: 'Desconto total', value: formatCurrency(summary.totalDiscount), tone: 'warning' },
     ],
   }
+  const organizerInitials =
+    session?.organizer.name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? '')
+      .join('') || 'OP'
+  const operatorAlertCount =
+    summary.pendingRegistrations +
+    queuedEmails.length +
+    (integrations.mercadoPagoEnabled ? 0 : 1) +
+    (integrations.resendEnabled ? 0 : 1)
+  const operatorInboxCount = contactLeads.length + queuedEmails.length
+  const primaryRaceReports = reports.byRace.slice(0, 5)
+  const maxPrimaryRaceRegistrations = Math.max(
+    1,
+    ...primaryRaceReports.map((raceReport) => raceReport.registrations),
+  )
+  const revenueMix = (() => {
+    const palette = ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e']
+    const ranked = [...reports.byRace]
+      .filter((raceReport) => raceReport.revenue > 0)
+      .sort((left, right) => right.revenue - left.revenue)
+    const totalRevenue = ranked.reduce((sum, raceReport) => sum + raceReport.revenue, 0)
+
+    if (totalRevenue === 0) {
+      return {
+        chart: 'conic-gradient(#d7dfeb 0deg 360deg)',
+        items: [] as Array<{ color: string; label: string; share: number; value: number }>,
+      }
+    }
+
+    const baseItems = ranked.slice(0, 3).map((raceReport, index) => ({
+      color: palette[index] ?? palette[palette.length - 1],
+      label: raceReport.raceName,
+      value: raceReport.revenue,
+    }))
+    const otherRevenue = ranked.slice(3).reduce((sum, raceReport) => sum + raceReport.revenue, 0)
+    const items =
+      otherRevenue > 0
+        ? [...baseItems, { color: palette[3], label: 'Outras provas', value: otherRevenue }]
+        : baseItems
+
+    let startAngle = 0
+    const gradientStops = items.map((item) => {
+      const share = totalRevenue === 0 ? 0 : item.value / totalRevenue
+      const endAngle = startAngle + share * 360
+      const stop = `${item.color} ${startAngle}deg ${endAngle}deg`
+      startAngle = endAngle
+      return stop
+    })
+
+    return {
+      chart: `conic-gradient(${gradientStops.join(', ')})`,
+      items: items.map((item) => ({
+        ...item,
+        share: Math.round((item.value / totalRevenue) * 100),
+      })),
+    }
+  })()
 
   function renderReportsPanel() {
     return (
@@ -543,18 +636,55 @@ export function OrganizerDashboardPage() {
           <BarChart3 size={18} />
         </div>
 
-        <div className="report-grid">
-          {reports.byRace.map((raceReport) => (
-            <div key={raceReport.raceId} className="info-chip info-chip--report">
-              <span>{raceReport.raceName}</span>
-              <strong>{raceReport.registrations} inscricoes</strong>
-              <small>
-                {raceReport.paidRegistrations} pagas | {raceReport.checkedIn} check-ins |{' '}
-                {formatCurrency(raceReport.revenue)}
-              </small>
+        {primaryRaceReports.length === 0 ? (
+          <div className="dashboard-empty">
+            <h3>Sem dados operacionais ainda</h3>
+            <p>Assim que as corridas receberem inscricoes, a leitura executiva aparece aqui.</p>
+          </div>
+        ) : (
+          <>
+            <div className="operator-report-board">
+              {primaryRaceReports.map((raceReport) => (
+                <div key={raceReport.raceId} className="operator-report-row">
+                  <div className="operator-report-row__copy">
+                    <strong>{raceReport.raceName}</strong>
+                    <span>
+                      {raceReport.paidRegistrations} pagas | {formatCurrency(raceReport.revenue)}
+                    </span>
+                  </div>
+                  <div className="operator-report-row__track" aria-hidden="true">
+                    <span
+                      style={{
+                        width: `${Math.max(
+                          14,
+                          Math.round(
+                            (raceReport.registrations / maxPrimaryRaceRegistrations) * 100,
+                          ),
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                  <strong className="operator-report-row__value">
+                    {raceReport.registrations}
+                  </strong>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+
+            <div className="report-grid">
+              {reports.byRace.map((raceReport) => (
+                <div key={raceReport.raceId} className="info-chip info-chip--report">
+                  <span>{raceReport.raceName}</span>
+                  <strong>{raceReport.registrations} inscricoes</strong>
+                  <small>
+                    {raceReport.paidRegistrations} pagas | {raceReport.checkedIn} check-ins |{' '}
+                    {formatCurrency(raceReport.revenue)}
+                  </small>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
 
         <div className="report-grid">
           {reports.couponUsage.length === 0 ? (
@@ -626,6 +756,53 @@ export function OrganizerDashboardPage() {
             <span>{integrations.webhookUrl || 'Nao definido'}</span>
           </div>
         </div>
+      </article>
+    )
+  }
+
+  function renderRevenueMixPanel() {
+    return (
+      <article className="panel dashboard-panel">
+        <div className="dashboard-panel__header">
+          <div>
+            <span className="section-eyebrow">Receita</span>
+            <h2>Distribuicao por prova</h2>
+          </div>
+          <span>{reports.byRace.length} fonte(s)</span>
+        </div>
+
+        {revenueMix.items.length === 0 ? (
+          <div className="dashboard-empty">
+            <h3>Sem receita consolidada</h3>
+            <p>Publique eventos e conclua pagamentos para visualizar a distribuicao aqui.</p>
+          </div>
+        ) : (
+          <div className="operator-donut-panel">
+            <div className="operator-donut-chart" style={{ background: revenueMix.chart }}>
+              <div className="operator-donut-chart__center">
+                <span>Total</span>
+                <strong>{formatCurrency(summary.revenue)}</strong>
+              </div>
+            </div>
+
+            <div className="operator-donut-legend">
+              {revenueMix.items.map((item) => (
+                <div key={item.label} className="operator-donut-legend__item">
+                  <span
+                    className="operator-donut-legend__swatch"
+                    style={{ backgroundColor: item.color }}
+                  />
+                  <div>
+                    <strong>{item.label}</strong>
+                    <span>
+                      {item.share}% | {formatCurrency(item.value)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </article>
     )
   }
@@ -1190,6 +1367,86 @@ export function OrganizerDashboardPage() {
     )
   }
 
+  function renderDashboardSummaryPanel() {
+    return (
+      <article className="panel dashboard-panel operator-summary-panel">
+        <div className="operator-summary-panel__header">
+          <div>
+            <span className="section-eyebrow">Gestao central</span>
+            <h2>Dashboard de gestao</h2>
+          </div>
+
+          <div className="operator-summary-panel__status" aria-label="Resumo do dashboard">
+            <span>{lastSyncedLabel}</span>
+            <span>{publishedRaces} evento(s) publicado(s)</span>
+            <span>{summary.pendingRegistrations} pendencia(s)</span>
+          </div>
+
+          <div className="operator-summary-panel__actions">
+            <button className="button button--secondary" type="button" onClick={refreshDashboard}>
+              <RefreshCw size={16} />
+              <span>Atualizar</span>
+            </button>
+            <button
+              className="button button--primary"
+              type="button"
+              disabled={queuedEmails.length === 0 || isSendingEmails}
+              onClick={handleSendQueuedEmails}
+            >
+              <Send size={16} />
+              <span>
+                {isSendingEmails
+                  ? 'Enviando...'
+                  : queuedEmails.length === 0
+                    ? 'Emails em dia'
+                    : `Enviar ${queuedEmails.length}`}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <div className="row g-3 dashboard-kpis operator-kpis operator-kpis--embedded">
+          <div className="col-12 col-md-6 col-xxl-3">
+            <MetricCard
+              icon={Users}
+              label="Inscricoes"
+              tone="primary"
+              value={summary.totalRegistrations.toString()}
+              supporting={`${summary.paidRegistrations} pagas | ${summary.pendingRegistrations} pendentes`}
+            />
+          </div>
+          <div className="col-12 col-md-6 col-xxl-3">
+            <MetricCard
+              icon={CreditCard}
+              label="Receita"
+              tone="success"
+              value={formatCurrency(summary.revenue)}
+              supporting={`${summary.conversionRate}% de conversao`}
+            />
+          </div>
+          <div className="col-12 col-md-6 col-xxl-3">
+            <MetricCard
+              icon={TicketPercent}
+              label="Desconto"
+              tone="info"
+              value={formatCurrency(summary.totalDiscount)}
+              supporting={`${coupons.length} campanha(s) ativa(s) ou cadastrada(s)`}
+            />
+          </div>
+          <div className="col-12 col-md-6 col-xxl-3">
+            <MetricCard
+              icon={PackageCheck}
+              label="Operacao"
+              tone="warning"
+              value={`${summary.checkedInCount} check-ins`}
+              supporting={`${summary.kitsDeliveredCount} kits entregues | ${readyKits} prontos`}
+            />
+          </div>
+        </div>
+      </article>
+    )
+  }
+
   function renderActiveWorkspace() {
     if (activeWorkspace === 'dashboard') {
       return (
@@ -1197,17 +1454,17 @@ export function OrganizerDashboardPage() {
           <div className="operator-stage__header">
             <div>
               <span className="section-eyebrow">Dashboard</span>
-              <h2>Visao executiva do evento</h2>
+              <h2>Central de gestao</h2>
             </div>
-            <p>Monitore desempenho, integracoes e comunicacao da operacao a partir de uma tela mais limpa.</p>
+            <p>Entrada principal com sinais de receita, operacao e saude da plataforma. Os outros modulos abrem apenas pelo menu.</p>
           </div>
           {renderStageMeta('dashboard')}
+          {renderDashboardSummaryPanel()}
           <div className="dashboard-content operator-dashboard-grid">
             <div className="dashboard-main">{renderReportsPanel()}</div>
             <div className="dashboard-side">
+              {renderRevenueMixPanel()}
               {renderIntegrationsPanel()}
-              {renderLeadsPanel()}
-              {renderEmailsPanel()}
             </div>
           </div>
         </div>
@@ -1276,168 +1533,79 @@ export function OrganizerDashboardPage() {
 
   return (
     <OperatorLayout>
-      <section className="operator-hero">
-        <div className="container operator-hero__grid">
-          <div className="operator-hero__copy">
-            <div className="operator-context-pills">
-              {platformSignals.map((signal) => (
-                <span
-                  key={signal.label}
-                  className={`operator-context-pill operator-context-pill--${signal.tone}`}
-                >
-                  <span>{signal.label}</span>
-                  <strong>{signal.value}</strong>
-                </span>
-              ))}
-            </div>
-
-            <span className="section-eyebrow">Centro de operacoes</span>
-            <h1>Painel profissional para operacao de eventos, pagamentos e atendimento</h1>
-            <p>
-              Ambiente administrativo separado da experiencia do atleta para controlar receita,
-              catalogo, campanhas, fila operacional, kits, check-in e comunicacao.
-            </p>
-
-            <div className="operator-shortcuts">
-              {workspaceItems.map((item) => {
-                const Icon = item.icon
-
-                return (
-                  <button
-                    key={item.key}
-                    className={`operator-shortcuts__item${
-                      activeWorkspace === item.key ? ' operator-shortcuts__item--active' : ''
-                    }`}
-                    type="button"
-                    onClick={() => setActiveWorkspace(item.key)}
-                  >
-                    <span className="operator-shortcuts__icon">
-                      <Icon size={16} />
-                    </span>
-                    <span className="operator-shortcuts__copy">
-                      <strong>{item.label}</strong>
-                      <small>{item.description}</small>
-                    </span>
-                    <span className="operator-shortcuts__count">{item.count}</span>
-                  </button>
-                )
-              })}
-            </div>
-
-            <div className="dashboard-toolbar operator-toolbar">
-              <button className="button button--secondary" type="button" onClick={refreshDashboard}>
-                <RefreshCw size={16} />
-                <span>Atualizar dados</span>
+      <section className="operator-console">
+        <div className="container container--wide">
+          <div className="operator-console__topbar">
+            <div className="operator-console__menu-group">
+              <button
+                className="operator-shell-toggle operator-shell-toggle--desktop-inline"
+                type="button"
+                aria-controls="operator-sidebar"
+                aria-expanded={!isSidebarCollapsed}
+                onClick={toggleSidebarCollapse}
+              >
+                {isSidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+                <span>Menu</span>
               </button>
               <button
-                className="button button--primary"
+                className="operator-shell-toggle operator-shell-toggle--mobile-inline"
                 type="button"
-                disabled={queuedEmails.length === 0 || isSendingEmails}
-                onClick={handleSendQueuedEmails}
+                aria-controls="operator-sidebar"
+                aria-expanded={isSidebarDrawerOpen}
+                onClick={openSidebarDrawer}
               >
-                <Send size={16} />
-                <span>
-                  {isSendingEmails
-                    ? 'Enviando emails...'
-                    : queuedEmails.length === 0
-                      ? 'Sem emails pendentes'
-                      : `Disparar ${queuedEmails.length} email(s)`}
-                </span>
-              </button>
-              <button className="button button--ghost" type="button" onClick={handleLogout}>
-                Sair do painel
+                <Menu size={16} />
+                <span>Menu</span>
               </button>
             </div>
 
-            {session ? (
-              <div className="dashboard-identity operator-identity">
-                <strong>{session.organizer.name}</strong>
-                <span>{session.organizer.email}</span>
+            <label className="operator-console__search">
+              <Search size={18} />
+              <input
+                aria-label="Buscar no painel do operador"
+                placeholder="Buscar corrida, inscricao, lead ou cupom"
+                type="search"
+              />
+            </label>
+
+            <div className="operator-console__utility">
+              <div
+                className="operator-console__icon-button"
+                aria-label={`${operatorAlertCount} alerta(s) operacionais`}
+                role="status"
+              >
+                <Bell size={18} />
+                {operatorAlertCount > 0 ? <span>{operatorAlertCount}</span> : null}
               </div>
-            ) : null}
+              <div
+                className="operator-console__icon-button"
+                aria-label={`${operatorInboxCount} contato(s) e mensagem(ns)`}
+                role="status"
+              >
+                <Send size={18} />
+                {operatorInboxCount > 0 ? <span>{operatorInboxCount}</span> : null}
+              </div>
+
+              {session ? (
+                <div className="operator-console__profile">
+                  <div className="operator-console__avatar" aria-hidden="true">
+                    {organizerInitials}
+                  </div>
+                  <div className="operator-console__profile-copy">
+                    <strong>{session.organizer.name}</strong>
+                    <span>{session.organizer.email}</span>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </div>
-
-          <aside className="operator-hero__side">
-            <article className="operator-brief">
-              <span className="operator-brief__label">Visao do turno</span>
-              <h2>Control tower da operacao</h2>
-              <p>
-                O backoffice agora se comporta como produto: leitura rapida, modulos separados
-                e sinais claros do que precisa de acao da equipe.
-              </p>
-
-              <div className="operator-stack-pills">
-                <span className="operator-stack-pill">
-                  {integrations.mercadoPagoEnabled
-                    ? 'Pagamento online'
-                    : integrations.mercadoPagoConfigured
-                      ? 'Gateway pendente'
-                      : 'Pagamento assistido'}
-                </span>
-                <span className="operator-stack-pill">
-                  {integrations.resendEnabled ? 'Email transacional ativo' : 'Email interno'}
-                </span>
-                <span className="operator-stack-pill">Workspace {activeWorkspaceItem.label}</span>
-              </div>
-            </article>
-
-            <div className="operator-brief__grid">
-              <div className="operator-brief__item">
-                <span>Taxa de pagamento</span>
-                <strong>{paidRate}%</strong>
-                <small>{summary.paidRegistrations} inscricoes pagas</small>
-              </div>
-              <div className="operator-brief__item">
-                <span>Kits para entrega</span>
-                <strong>{readyKits}</strong>
-                <small>{summary.kitsDeliveredCount} entregues</small>
-              </div>
-              <div className="operator-brief__item">
-                <span>Emails pendentes</span>
-                <strong>{queuedEmails.length}</strong>
-                <small>fila transacional atual</small>
-              </div>
-              <div className="operator-brief__item">
-                <span>Eventos em rascunho</span>
-                <strong>{draftRaces}</strong>
-                <small>{publishedRaces} publicados</small>
-              </div>
-            </div>
-          </aside>
         </div>
       </section>
 
       <section className="section section--compact operator-section">
-        <div className="container operator-dashboard">
+        <div className="container container--wide operator-dashboard">
           {feedbackMessage ? <div className="success-note">{feedbackMessage}</div> : null}
           {errorMessage ? <div className="success-note success-note--error">{errorMessage}</div> : null}
-
-          <div className="dashboard-kpis operator-kpis">
-            <MetricCard
-              icon={Users}
-              label="Inscricoes"
-              value={summary.totalRegistrations.toString()}
-              supporting={`${summary.paidRegistrations} pagas | ${summary.pendingRegistrations} pendentes`}
-            />
-            <MetricCard
-              icon={CreditCard}
-              label="Receita"
-              value={formatCurrency(summary.revenue)}
-              supporting={`${summary.conversionRate}% de conversao`}
-            />
-            <MetricCard
-              icon={TicketPercent}
-              label="Desconto"
-              value={formatCurrency(summary.totalDiscount)}
-              supporting={`${coupons.length} cupom(ns) cadastrado(s)`}
-            />
-            <MetricCard
-              icon={PackageCheck}
-              label="Operacao"
-              value={`${summary.checkedInCount} check-ins`}
-              supporting={`${summary.kitsDeliveredCount} kits entregues | ${readyKits} prontos`}
-            />
-          </div>
 
           {isLoading ? (
             <article className="panel empty-panel">
@@ -1446,11 +1614,35 @@ export function OrganizerDashboardPage() {
             </article>
           ) : (
             <>
-              <div className="operator-workspace-shell">
-                <aside className="operator-sidebar">
+              <div
+                className={`operator-workspace-shell${
+                  isSidebarCollapsed ? ' operator-workspace-shell--collapsed' : ''
+                }${isSidebarDrawerOpen ? ' operator-workspace-shell--menu-open' : ''}`}
+              >
+                <button
+                  className={`operator-sidebar-backdrop${
+                    isSidebarDrawerOpen ? ' operator-sidebar-backdrop--visible' : ''
+                  }`}
+                  type="button"
+                  aria-label="Fechar menu lateral"
+                  onClick={closeSidebarDrawer}
+                />
+                <aside id="operator-sidebar" className="operator-sidebar" aria-label="Menu do operador">
                   <div className="operator-sidebar__header">
-                    <span className="section-eyebrow">Menu do operador</span>
-                    <h2>Modulos do backoffice</h2>
+                    <div className="operator-sidebar__header-copy">
+                      <span className="section-eyebrow">Menu do operador</span>
+                      <h2>Gestao</h2>
+                    </div>
+                    <div className="operator-sidebar__header-actions">
+                      <button
+                        className="operator-sidebar__toggle operator-sidebar__toggle--mobile"
+                        type="button"
+                        aria-label="Fechar menu lateral"
+                        onClick={closeSidebarDrawer}
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="operator-sidebar__nav">
@@ -1464,7 +1656,9 @@ export function OrganizerDashboardPage() {
                             activeWorkspace === item.key ? ' operator-sidebar__item--active' : ''
                           }`}
                           type="button"
-                          onClick={() => setActiveWorkspace(item.key)}
+                          title={`${item.label} - ${item.description}`}
+                          aria-label={`${item.label}. ${item.description}. ${item.count} itens.`}
+                          onClick={() => handleWorkspaceChange(item.key)}
                         >
                           <span className="operator-sidebar__icon">
                             <Icon size={18} />
@@ -1479,35 +1673,16 @@ export function OrganizerDashboardPage() {
                     })}
                   </div>
 
-                  <div className="operator-sidebar__card">
-                    <span className="operator-sidebar__label">Workspace ativo</span>
-                    <strong>
-                      {activeWorkspaceItem.label}
-                    </strong>
-                    <p>{activeWorkspaceItem.description}</p>
-                    <div className="operator-sidebar__card-metrics">
-                      <div className="operator-sidebar__card-metric">
-                        <span>Volume</span>
-                        <strong>{activeWorkspaceItem.count}</strong>
-                      </div>
-                      <div className="operator-sidebar__card-metric">
-                        <span>Sincronizado</span>
-                        <strong>{lastSyncedLabel}</strong>
-                      </div>
+                  {showSidebarFooter ? (
+                    <div className="operator-sidebar__footer">
+                      <span className="operator-sidebar__label">Workspace ativo</span>
+                      <strong>{activeWorkspaceItem.label}</strong>
+                      <p>{activeWorkspaceItem.description}</p>
+                      <small>
+                        {activeWorkspaceItem.count} item(ns) monitorado(s) | {lastSyncedLabel}
+                      </small>
                     </div>
-                  </div>
-
-                  <div className="operator-sidebar__pulse">
-                    {workspacePulse.map((item) => (
-                      <div
-                        key={item.label}
-                        className={`operator-sidebar__pulse-item operator-sidebar__pulse-item--${item.tone}`}
-                      >
-                        <span>{item.label}</span>
-                        <strong>{item.value}</strong>
-                      </div>
-                    ))}
-                  </div>
+                  ) : null}
                 </aside>
 
                 <div className="operator-workspace-content">{renderActiveWorkspace()}</div>
@@ -1806,8 +1981,8 @@ export function OrganizerDashboardPage() {
                 </div>
               </div>
 
-              <div className="operator-admin-grid">
-                <div className="operator-admin-column">
+              <div className="row g-4 operator-admin-grid">
+                <div className="col-12 col-xxl-6 operator-admin-column">
                   <div id="catalogo" className="operator-section-block operator-section-block--compact">
                     <div className="operator-section-header operator-section-header--stacked">
                       <div>
@@ -2070,7 +2245,7 @@ export function OrganizerDashboardPage() {
                   </div>
                 </div>
 
-                <div className="operator-admin-column">
+                <div className="col-12 col-xxl-6 operator-admin-column">
                   <div className="operator-section-block operator-section-block--compact">
                     <div className="operator-section-header operator-section-header--stacked">
                       <div>
@@ -2208,15 +2383,17 @@ function MetricCard({
   icon: Icon,
   label,
   supporting,
+  tone,
   value,
 }: {
   icon: typeof Users
   label: string
   supporting: string
+  tone: 'primary' | 'success' | 'info' | 'warning'
   value: string
 }) {
   return (
-    <article className="panel metric-card metric-card--dashboard">
+    <article className={`panel metric-card metric-card--dashboard metric-card--${tone} h-100`}>
       <span className="metric-card__icon">
         <Icon size={20} />
       </span>

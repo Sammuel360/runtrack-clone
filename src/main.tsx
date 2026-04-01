@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 
 import App from './App'
 import { AthleteAuthProvider } from './components/AthleteAuth'
+import 'bootstrap/dist/css/bootstrap.min.css'
 import './style.css'
 import './product.css'
 
